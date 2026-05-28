@@ -3,6 +3,7 @@ package com.wotos.wotosuserservice.util;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
@@ -16,11 +17,25 @@ import java.util.function.Function;
 @Service
 public class JwtUtil {
 
-    // TODO(#6 — Phase 3 Security Hardening): externalize this secret to config and rotate it.
-    // jjwt 0.12 enforces HS256's 256-bit (32-byte) key floor, so the placeholder must stay >= 32 bytes.
-    private static final String SECRET_KEY = "wotos-user-service-development-secret-key-change-in-phase-3";
+    /** HS256 requires a 256-bit (32-byte) key; reject anything weaker at startup. */
+    private static final int MIN_SECRET_BYTES = 32;
 
-    private final SecretKey signingKey = Keys.hmacShaKeyFor(SECRET_KEY.getBytes(StandardCharsets.UTF_8));
+    private final SecretKey signingKey;
+    private final long expirationMillis;
+
+    public JwtUtil(
+            @Value("${jwt.secret:}") String secret,
+            @Value("${jwt.expiration-millis:36000000}") long expirationMillis) {
+        byte[] secretBytes = secret == null ? new byte[0] : secret.getBytes(StandardCharsets.UTF_8);
+        if (secretBytes.length < MIN_SECRET_BYTES) {
+            throw new IllegalStateException(
+                    "jwt.secret is missing or shorter than " + MIN_SECRET_BYTES + " bytes. "
+                            + "Provide it via Spring Cloud Config or the JWT_SECRET environment variable; "
+                            + "never commit it to source.");
+        }
+        this.signingKey = Keys.hmacShaKeyFor(secretBytes);
+        this.expirationMillis = expirationMillis;
+    }
 
     public String extractUsername(String token) {
         return extractClaim(token, Claims::getSubject);
@@ -63,7 +78,7 @@ public class JwtUtil {
                 .claims(claims)
                 .subject(subject)
                 .issuedAt(new Date(nowMillis))
-                .expiration(new Date(nowMillis + 1000 * 60 * 60 * 10))
+                .expiration(new Date(nowMillis + expirationMillis))
                 .signWith(signingKey, Jwts.SIG.HS256)
                 .compact();
     }
