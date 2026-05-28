@@ -2,10 +2,12 @@ package com.wotos.wotosuserservice.util;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.security.Keys;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
+import javax.crypto.SecretKey;
+import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -14,7 +16,11 @@ import java.util.function.Function;
 @Service
 public class JwtUtil {
 
-    private String SECRET_KEY = "String"; // generate random string
+    // TODO(#6 — Phase 3 Security Hardening): externalize this secret to config and rotate it.
+    // jjwt 0.12 enforces HS256's 256-bit (32-byte) key floor, so the placeholder must stay >= 32 bytes.
+    private static final String SECRET_KEY = "wotos-user-service-development-secret-key-change-in-phase-3";
+
+    private final SecretKey signingKey = Keys.hmacShaKeyFor(SECRET_KEY.getBytes(StandardCharsets.UTF_8));
 
     public String extractUsername(String token) {
         return extractClaim(token, Claims::getSubject);
@@ -44,13 +50,22 @@ public class JwtUtil {
     }
 
     private Claims extractAllClaims(String token) {
-        return Jwts.parser().setSigningKey(SECRET_KEY).parseClaimsJws(token).getBody();
+        return Jwts.parser()
+                .verifyWith(signingKey)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
     }
 
     private String createToken(Map<String, Object> claims, String subject) {
-        return Jwts.builder().setClaims(claims).setSubject(subject).setIssuedAt(new Date(System.currentTimeMillis()))
-                .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60 * 10))
-                .signWith(SignatureAlgorithm.HS256, SECRET_KEY).compact();
+        long nowMillis = System.currentTimeMillis();
+        return Jwts.builder()
+                .claims(claims)
+                .subject(subject)
+                .issuedAt(new Date(nowMillis))
+                .expiration(new Date(nowMillis + 1000 * 60 * 60 * 10))
+                .signWith(signingKey, Jwts.SIG.HS256)
+                .compact();
     }
 
 }
