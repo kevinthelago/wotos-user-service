@@ -4,3 +4,5 @@
 
 - P2-D2: registration now BCrypt-encodes passwords (was storing raw -> login was broken); cost factor 12. roles/active set server-side ('user'/true) to block privilege self-assignment. Validation: username 3-32, password >=10; errors use {error:{code,message}} envelope (400 validation_error, 409 username_taken).
 
+- P2-D5: Preferences stored in separate user_preferences table keyed by username (decoupled from LocalUser's int PK). darkTheme is independent of the legacy LocalUser.dark_mode used by the login/create viewmodel; preferences endpoint is the new source of truth for theme. PUT is full-replace. Added 401 authenticationEntryPoint so protected endpoints return 401 (not a redirect) when unauthenticated.
+

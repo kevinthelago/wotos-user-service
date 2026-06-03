@@ -55,6 +55,8 @@ Configured port: `4646`.
 | `POST` | `/users/login` | None | Authenticate and receive a JWT |
 | `GET` | `/users/hello` | None | Health check |
 | `GET` | `/.well-known/jwks.json` | None | RS256 public verification key (JWK set) |
+| `GET` | `/users/me/preferences` | JWT | Read the authenticated user's preferences |
+| `PUT` | `/users/me/preferences` | JWT | Replace the authenticated user's preferences |
 
 ### Registration
 
@@ -135,3 +137,25 @@ in each issued token's header.
 
 To rotate the key, replace `JWT_PRIVATE_KEY_PEM` and restart; the JWKS endpoint
 then publishes the new public key (and a new `kid`) for validators to pick up.
+
+## User preferences
+
+`GET`/`PUT /users/me/preferences` read and replace the authenticated user's
+preferences. Both require a valid `Bearer` JWT; the owning user is taken from
+the token, never the request body. `PUT` is a full replacement.
+
+```json
+{
+  "darkTheme": true,
+  "savedNicknames": ["Tankzilla", "BushWookie"],
+  "lastGarageVehicleId": 42
+}
+```
+
+- `darkTheme` — boolean
+- `savedNicknames` — array of strings, **at most 25** (exceeding it returns a
+  `400` `validation_error` envelope)
+- `lastGarageVehicleId` — number or `null`
+
+A user who has never saved preferences reads the defaults
+(`darkTheme: false`, empty `savedNicknames`, `lastGarageVehicleId: null`).
