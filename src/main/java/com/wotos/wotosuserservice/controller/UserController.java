@@ -7,6 +7,7 @@ import com.wotos.wotosuserservice.model.UserJwt;
 import com.wotos.wotosuserservice.security.CustomUserDetailsService;
 import com.wotos.wotosuserservice.service.UserService;
 import com.wotos.wotosuserservice.util.JwtUtil;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -28,7 +29,7 @@ public class UserController {
     }
 
     @PostMapping("/create")
-    public ResponseEntity<LocalUserViewModel> createLocalUser(@RequestBody LocalUser localUser) {
+    public ResponseEntity<LocalUserViewModel> createLocalUser(@Valid @RequestBody LocalUser localUser) {
         return userService.createLocalUser(localUser);
     }
 

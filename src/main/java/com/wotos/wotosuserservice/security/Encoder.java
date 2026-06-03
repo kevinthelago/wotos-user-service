@@ -9,8 +9,11 @@ import java.security.SecureRandom;
 @Component
 public class Encoder implements PasswordEncoder {
 
+    /** BCrypt cost factor. Kept at the audited floor of 12 (P2-D2). */
+    public static final int BCRYPT_STRENGTH = 12;
+
     private BCryptPasswordEncoder encoder = new BCryptPasswordEncoder(
-            10,
+            BCRYPT_STRENGTH,
             new SecureRandom()
     );
 

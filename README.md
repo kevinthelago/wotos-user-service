@@ -56,6 +56,28 @@ Configured port: `4646`.
 | `GET` | `/users/hello` | None | Health check |
 | `GET` | `/.well-known/jwks.json` | None | RS256 public verification key (JWK set) |
 
+### Registration
+
+`POST /users/create` takes `{ "username", "password" }`. The `roles` and
+`active` fields are set server-side (new users are always created as a normal
+`user`), and the password is BCrypt-encoded (cost factor 12) before storage.
+
+Validation rules:
+
+- `username` — 3–32 characters, unique
+- `password` — at least 10 characters
+
+Failures return the standard error envelope:
+
+```json
+{ "error": { "code": "validation_error", "message": "password must be at least 10 characters" } }
+```
+
+| Status | `error.code`       | When                              |
+|--------|--------------------|-----------------------------------|
+| `400`  | `validation_error` | username/password fail the rules  |
+| `409`  | `username_taken`   | the username already exists       |
+
 ### Login request body
 
 ```json

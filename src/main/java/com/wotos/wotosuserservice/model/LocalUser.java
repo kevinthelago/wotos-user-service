@@ -1,7 +1,7 @@
 package com.wotos.wotosuserservice.model;
 
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 @Entity
@@ -11,12 +11,15 @@ public class LocalUser {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int user_id;
-    @Size(max=50, min=3)
-    @NotEmpty
+    @Size(min = 3, max = 32, message = "username must be 3-32 characters")
+    @NotBlank(message = "username is required")
     @Column(unique = true)
     private String username;
-    @Size(max=255, min=8)
-    @NotEmpty
+    // Validated on the raw submitted password at request binding; after the
+    // service BCrypt-encodes it the stored hash (~60 chars) still satisfies the
+    // bounds, so JPA's pre-persist validation also passes.
+    @Size(min = 10, max = 255, message = "password must be at least 10 characters")
+    @NotBlank(message = "password is required")
     private String password;
     private boolean active;
     private String roles;
@@ -24,7 +27,7 @@ public class LocalUser {
 
     public LocalUser() {}
 
-    public LocalUser(int user_id, @Size(max = 50, min = 8) @NotEmpty String username, @Size(max = 255, min = 8) @NotEmpty String password, boolean active, String roles, boolean dark_mode) {
+    public LocalUser(int user_id, String username, String password, boolean active, String roles, boolean dark_mode) {
         this.user_id = user_id;
         this.username = username;
         this.password = password;

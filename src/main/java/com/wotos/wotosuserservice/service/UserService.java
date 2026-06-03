@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wotos.wotosuserservice.dao.UserRepo;
 import com.wotos.wotosuserservice.model.*;
 import com.wotos.wotosuserservice.security.CustomUserDetailsService;
+import com.wotos.wotosuserservice.security.Encoder;
 import com.wotos.wotosuserservice.util.JwtUtil;
 import org.json.simple.parser.JSONParser;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,6 +39,9 @@ public class UserService {
 
     @Autowired
     private JwtUtil jwtTokenUtil;
+
+    @Autowired
+    private Encoder encoder;
 
     @Autowired
     private UserRepo repo;
@@ -78,19 +82,26 @@ public class UserService {
         }
     }
 
+    /**
+     * Registers a new user. The password is BCrypt-encoded before storage and
+     * role/active are set server-side so a client cannot self-assign privileges.
+     *
+     * <p>Bean-validation (username 3-32, password >= 10 chars) is enforced by
+     * {@code @Valid} at the controller; a duplicate username surfaces as a
+     * {@code DataIntegrityViolationException} which the global handler maps to a
+     * {@code 409} error envelope.
+     *
+     * @return {@code 201} with the created user's view model.
+     */
     public ResponseEntity<LocalUserViewModel> createLocalUser(LocalUser localUser) {
-        try {
-            repo.save(localUser);
+        localUser.setPassword(encoder.encode(localUser.getPassword()));
+        localUser.setRoles("user");
+        localUser.setActive(true);
 
-            LocalUserViewModel localUserViewModel = createViewModel(localUser);
+        repo.save(localUser);
 
-            return new ResponseEntity<>(localUserViewModel, httpHeaders, HttpStatus.CREATED);
-        } catch (Exception e) {
-            // todo: Catch Exception to return response based on error
-            // todo: i.e: password error, username duplication, ect
-            System.out.println(e.getMessage());
-            return new ResponseEntity<>(httpHeaders, HttpStatus.CONFLICT);
-        }
+        LocalUserViewModel localUserViewModel = createViewModel(localUser);
+        return new ResponseEntity<>(localUserViewModel, HttpStatus.CREATED);
     }
 
     private LocalUserViewModel createViewModel(LocalUser localUser) {
