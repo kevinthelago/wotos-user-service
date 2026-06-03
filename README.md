@@ -33,13 +33,14 @@ Authentication microservice for the [WoToS](https://github.com/users/kevinthelag
 
 ## API Endpoints
 
-All endpoints are under `/users` (configured port: `4646`).
+Configured port: `4646`.
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
 | `POST` | `/users/create` | None | Register a new user |
 | `POST` | `/users/login` | None | Authenticate and receive a JWT |
 | `GET` | `/users/hello` | None | Health check |
+| `GET` | `/.well-known/jwks.json` | None | RS256 public verification key (JWK set) |
 
 ### Login request body
 
@@ -58,4 +59,43 @@ All endpoints are under `/users` (configured port: `4646`).
 }
 ```
 
-Include the JWT as a `Bearer` token in the `Authorization` header for protected endpoints.
+`401 Unauthorized` is returned for an unknown username or a wrong password (the
+two are not distinguished, to avoid user enumeration).
+
+Include the JWT as a `Bearer` token in the `Authorization` header for protected
+endpoints:
+
+```
+Authorization: Bearer eyJ...
+```
+
+## Authentication & JWT
+
+Tokens are **RS256**-signed. The 2048-bit RSA signing key is loaded from the
+`JWT_PRIVATE_KEY_PEM` environment variable (an unencrypted **PKCS#8** PEM,
+`-----BEGIN PRIVATE KEY-----`), supplied as a Spring Cloud Config `{cipher}`
+value in production. **If no key is configured, an ephemeral key pair is
+generated at startup** — fine for local dev, tests, and a single-instance
+`docker compose up`, but configure a stable key for any multi-instance
+deployment, since each instance would otherwise sign with a different key.
+
+### JWT claims (contract for downstream validators)
+
+| Claim   | Type           | Notes                                            |
+|---------|----------------|--------------------------------------------------|
+| `sub`   | string         | Username                                         |
+| `iat`   | epoch seconds  | Issued-at                                        |
+| `exp`   | epoch seconds  | Expiry — 30 minutes after `iat` by default       |
+| `roles` | array<string>  | Authorities, e.g. `["user"]`                     |
+
+The JWS header carries `alg: RS256` and a `kid` matching the published JWK.
+
+### JWKS endpoint
+
+`GET /.well-known/jwks.json` (no auth) returns the public verification key as an
+RFC 7517 JWK set. Downstream services (e.g. the edge gateway) fetch this to
+validate tokens without sharing a secret. The `kid` in the set matches the `kid`
+in each issued token's header.
+
+To rotate the key, replace `JWT_PRIVATE_KEY_PEM` and restart; the JWKS endpoint
+then publishes the new public key (and a new `kid`) for validators to pick up.

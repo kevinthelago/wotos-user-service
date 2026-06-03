@@ -52,7 +52,14 @@ public class UserService {
 //        httpHeaders.add("Last Modified", "");
     }
 
-    public ResponseEntity<LocalUserViewModel> login(UserAuthenticationRequest userAuthenticationRequest) {
+    /**
+     * Authenticates a user and returns a freshly minted RS256 JWT.
+     *
+     * @return {@code 200 {"jwt": "..."}} on success; {@code 401} when the
+     *         username is unknown or the password is wrong (the two are not
+     *         distinguished, to avoid user enumeration).
+     */
+    public ResponseEntity<UserJwt> login(UserAuthenticationRequest userAuthenticationRequest) {
         try {
             authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(
@@ -65,20 +72,9 @@ public class UserService {
 
             final String jwt = jwtTokenUtil.generateToken(userDetails);
 
-            httpHeaders.set("Web Token", jwt);
-            Optional<LocalUser> localUser = repo.findLocalUserByUsername(userAuthenticationRequest.getUsername());
-            LocalUserViewModel localUserViewModel = createViewModel(localUser.map(LocalUser::new).get());
-
-            return new ResponseEntity<>(localUserViewModel, httpHeaders, HttpStatus.OK);
-        } catch (UsernameNotFoundException e) {
-            System.out.println(e.getMessage());
-            return new ResponseEntity<>(httpHeaders, HttpStatus.NOT_FOUND);
-        } catch(BadCredentialsException e) {
-            System.out.println(e.getMessage());
-            return new ResponseEntity<>(httpHeaders, HttpStatus.BAD_REQUEST);
-        } catch(IllegalArgumentException e) {
-            System.out.println(e.getMessage());
-            return new ResponseEntity<>(httpHeaders, HttpStatus.INTERNAL_SERVER_ERROR);
+            return ResponseEntity.ok(new UserJwt(jwt));
+        } catch (UsernameNotFoundException | BadCredentialsException e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
     }
 

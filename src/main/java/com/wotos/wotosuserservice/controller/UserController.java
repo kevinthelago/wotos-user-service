@@ -23,7 +23,7 @@ public class UserController {
     UserService userService;
 
     @PostMapping("/login")
-    public ResponseEntity<LocalUserViewModel> createAuthenticationToken(@RequestBody UserAuthenticationRequest userAuthenticationRequest) {
+    public ResponseEntity<UserJwt> createAuthenticationToken(@RequestBody UserAuthenticationRequest userAuthenticationRequest) {
         return userService.login(userAuthenticationRequest);
     }
 
