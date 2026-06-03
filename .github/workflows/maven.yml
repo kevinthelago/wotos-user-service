@@ -1,0 +1,53 @@
+# Java CI with Maven for wotos-user-service.
+#
+# Aligned with the shared WoToS maven.yml pattern used by the sibling Spring Boot
+# services. The test suite runs fully self-contained on in-memory H2 (see
+# src/test/resources/application.properties), so no MySQL service container is
+# required here. On a push to develop the verified jar is baked into the image
+# and published to GHCR at ghcr.io/kevinthelago/wotos-user-service:dev.
+name: Java CI with Maven
+
+on:
+  push:
+    branches: [ "develop" ]
+  pull_request:
+    branches: [ "develop" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+      - name: Build and test with Maven
+        run: ./mvnw -B -ntp verify --file pom.xml
+      - name: Update dependency graph
+        uses: advanced-security/maven-dependency-submission-action@571e99aab1055c2e71a1e2309b9691de18d6b7d6
+
+  publish-image:
+    # Only publish the dev image from develop; PR builds stop at the verify gate.
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ghcr.io/kevinthelago/wotos-user-service:dev

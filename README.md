@@ -4,7 +4,7 @@ Authentication microservice for the [WoToS](https://github.com/users/kevinthelag
 
 ## Prerequisites
 
-- Java 8 (Temurin recommended)
+- Java 17 (Temurin recommended)
 - Maven or the included `./mvnw` wrapper
 - MySQL 8 running at `localhost:3306`, user `root`, password `root`
 - Database `wotos_users_database` (created automatically by Hibernate on first run)
@@ -30,6 +30,20 @@ Authentication microservice for the [WoToS](https://github.com/users/kevinthelag
 ./mvnw clean package        # build JAR, skip tests
 ./mvnw clean install        # build JAR + run all tests
 ```
+
+## Container
+
+The service ships as a multi-stage image (JDK 17 build → JRE 17 runtime, run as a
+non-root user). CI publishes it to GHCR on every push to `develop`.
+
+```bash
+docker build -t ghcr.io/kevinthelago/wotos-user-service:dev .
+docker run --rm -p 4646:4646 \
+  -e JWT_PRIVATE_KEY_PEM="$(cat dev-private-key.pem)" \
+  ghcr.io/kevinthelago/wotos-user-service:dev
+```
+
+The published image is `ghcr.io/kevinthelago/wotos-user-service:dev`.
 
 ## API Endpoints
 
